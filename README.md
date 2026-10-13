@@ -95,6 +95,10 @@ services:
       - /etc/localtime:/etc/localtime:ro
       # Optionally, also mount docker socket if you want to use the docker containers widget
       # - /var/run/docker.sock:/var/run/docker.sock:ro
+    # You can also use the assets as non-root easily
+    # environment:
+      # - PUID=1000
+      # - PGID=1000
     ports:
       - 8080:8080
     env_file: .env
