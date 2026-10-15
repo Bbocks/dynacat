@@ -120,6 +120,21 @@ auth:
     redirect-url: https://dashboard.example.com/api/oidc/callback
 ```
 
+### Skipping the login page
+
+With `disable-password: true` set, you can also skip the Dynacat login page and go straight to your identity provider:
+
+```yaml
+auth:
+  secret-key: ...
+  disable-password: true
+  auto-redirect-oidc: true
+  oidc:
+    ...
+```
+
+If the provider returns an error, the login page is shown instead so you can see what went wrong. Combined with a "skip consent" option in your provider (e.g. PocketID), logging out will sign you straight back in while your provider session is still active.
+
 ### Provider guides
 
 #### Generic OIDC

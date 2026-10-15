@@ -47,11 +47,12 @@ type config struct {
 	} `yaml:"server"`
 
 	Auth struct {
-		SecretKey       string           `yaml:"secret-key"`
-		RequireAuth     *bool            `yaml:"require-auth"`
-		DisablePassword bool             `yaml:"disable-password"`
-		Users           map[string]*user `yaml:"users"`
-		OIDC            *oidcConfig      `yaml:"oidc"`
+		SecretKey        string           `yaml:"secret-key"`
+		RequireAuth      *bool            `yaml:"require-auth"`
+		DisablePassword  bool             `yaml:"disable-password"`
+		AutoRedirectOIDC bool             `yaml:"auto-redirect-oidc"`
+		Users            map[string]*user `yaml:"users"`
+		OIDC             *oidcConfig      `yaml:"oidc"`
 	} `yaml:"auth"`
 
 	API struct {
@@ -561,6 +562,10 @@ func isConfigStateValid(config *config) error {
 
 	if config.Auth.DisablePassword && config.Auth.OIDC == nil {
 		return fmt.Errorf("disable-password requires oidc to be configured")
+	}
+
+	if config.Auth.AutoRedirectOIDC && !config.Auth.DisablePassword {
+		return fmt.Errorf("auto-redirect-oidc requires disable-password to be true")
 	}
 
 	for username := range config.Auth.Users {
