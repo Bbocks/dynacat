@@ -492,6 +492,12 @@ func (a *application) handleLoginPageRequest(w http.ResponseWriter, r *http.Requ
 
 	oidcError := r.URL.Query().Get("error")
 
+	// Show the page on OIDC errors so a failing provider can't cause a redirect loop.
+	if a.Config.Auth.AutoRedirectOIDC && a.OIDCEnabled && oidcError == "" {
+		http.Redirect(w, r, a.Config.Server.BaseURL+"/api/oidc/login", http.StatusSeeOther)
+		return
+	}
+
 	data := &templateData{
 		App:       a,
 		OIDCError: oidcError,
