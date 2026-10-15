@@ -96,6 +96,8 @@ func newWidget(widgetType string) (widget, error) {
 		w = &latestMediaWidget{}
 	case "torrenting":
 		w = &torrentingWidget{}
+	case "home-assistant":
+		w = &homeAssistantWidget{}
 	default:
 		return nil, fmt.Errorf("unknown widget type: %s", widgetType)
 	}

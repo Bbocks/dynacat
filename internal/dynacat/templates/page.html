@@ -5,6 +5,7 @@
 {{ define "document-head-after" }}
 <script type="module" src='{{ .App.StaticAssetPath "js/page.js" }}'></script>
 <script src='{{ .App.StaticAssetPath "js/docker-controller.js" }}'></script>
+<script src='{{ .App.StaticAssetPath "js/home-assistant.js" }}'></script>
 {{ if .App.EditorEnabled }}
 <script type="module">
     // The visual editor is desktop only (drag and drop), so skip it on mobile.

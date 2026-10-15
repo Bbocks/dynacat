@@ -110,6 +110,18 @@ func (widget *redditWidget) initialize() error {
 
 func (widget *redditWidget) update(ctx context.Context) {
 	posts, err := widget.fetchSubredditPosts()
+	fromRSS := false
+
+	// Reddit's RSS feeds still serve signed-out clients when the JSON API blocks them.
+	if err != nil && !widget.AppAuth.enabled {
+		rssPosts, rssErr := widget.fetchSubredditPostsFromRSS()
+		if rssErr != nil {
+			err = fmt.Errorf("%w, rss fallback also failed: %v", err, rssErr)
+		} else {
+			posts, err, fromRSS = rssPosts, nil, true
+		}
+	}
+
 	if !widget.canContinueUpdateAfterHandlingErr(err) {
 		return
 	}
@@ -118,7 +130,7 @@ func (widget *redditWidget) update(ctx context.Context) {
 		posts = posts[:widget.Limit]
 	}
 
-	if widget.ExtraSortBy == "engagement" {
+	if widget.ExtraSortBy == "engagement" && !fromRSS {
 		posts.calculateEngagement()
 		posts.sortByEngagement()
 	}
@@ -331,6 +343,99 @@ func (widget *redditWidget) fetchSubredditPosts() (forumPostList, error) {
 		}
 
 		posts = append(posts, forumPost)
+	}
+
+	return posts, nil
+}
+
+var redditRSSTargetLinkPattern = regexp.MustCompile(`<a href="([^"]+)">\[link\]</a>`)
+
+func (widget *redditWidget) fetchSubredditPostsFromRSS() (forumPostList, error) {
+	query := url.Values{}
+
+	if widget.SortBy == "top" {
+		query.Set("t", widget.TopPeriod)
+	}
+
+	if widget.Limit > 25 {
+		query.Set("limit", strconv.Itoa(widget.Limit))
+	}
+
+	requestURL := buildRedditRequestURL("https://www.reddit.com", fmt.Sprintf("/r/%s/%s/.rss", widget.Subreddit, widget.SortBy), query)
+
+	if widget.RequestURLTemplate != "" {
+		requestURL = strings.ReplaceAll(widget.RequestURLTemplate, "{REQUEST-URL}", requestURL)
+	}
+
+	request, err := http.NewRequest("GET", requestURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	setBrowserUserAgentHeader(request)
+
+	var client requestDoer = redditHTTPClient
+	if widget.RequestURLTemplate == "" && widget.Proxy.client != nil {
+		client = widget.Proxy.client
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code %d from %s", response.StatusCode, requestURL)
+	}
+
+	feed, err := feedParser.Parse(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(feed.Items) == 0 {
+		return nil, fmt.Errorf("no posts found")
+	}
+
+	posts := make(forumPostList, 0, len(feed.Items))
+
+	for _, item := range feed.Items {
+		post := forumPost{
+			Title:         html.UnescapeString(item.Title),
+			Subreddit:     widget.Subreddit,
+			DiscussionUrl: item.Link,
+			StatsUnknown:  true,
+			ThumbnailUrl:  findThumbnailInItemExtensions(item),
+		}
+
+		if len(item.Categories) > 0 {
+			post.Subreddit = item.Categories[0]
+		}
+
+		if item.PublishedParsed != nil {
+			post.TimePosted = *item.PublishedParsed
+		}
+
+		if widget.CommentsURLTemplate != "" {
+			if parsed, err := url.Parse(item.Link); err == nil {
+				post.DiscussionUrl = widget.parseCustomCommentsURL(post.Subreddit, strings.TrimPrefix(item.GUID, "t3_"), parsed.Path)
+			}
+		}
+
+		if matches := redditRSSTargetLinkPattern.FindStringSubmatch(item.Content); matches != nil {
+			target := html.UnescapeString(matches[1])
+			if strings.HasPrefix(target, "/") {
+				target = "https://www.reddit.com" + target
+			}
+
+			if parsed, err := url.Parse(target); err == nil && target != item.Link {
+				post.TargetUrl = target
+				post.TargetUrlDomain = strings.TrimPrefix(parsed.Hostname(), "www.")
+			}
+		}
+
+		posts = append(posts, post)
 	}
 
 	return posts, nil
