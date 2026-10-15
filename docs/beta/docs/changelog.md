@@ -3,6 +3,9 @@
 - Fixed `secureImageURL` in `custom-api` never refreshing cached images, they are now re-downloaded after the widget `cache` duration -> https://github.com/Panonim/dynacat/issues/176
 - Added support for passwordless Pi-hole v6 instances in `dns-stats` -> https://github.com/Panonim/dynacat/issues/177
 - Added an opt-in `show-missing` option to `docker-containers` to display configured containers the engine no longer reports -> https://github.com/Panonim/dynacat/pull/173
+- Added an opt-in `auto-redirect-oidc` auth option to skip the login page and go straight to the OIDC provider, requires `disable-password: true` -> https://github.com/Panonim/dynacat/issues/182
+- Fixed Reddit widget returning `403` again by using Reddit's guest token on `oauth.reddit.com`, blocked requests now show a short error pointing to `app-auth`
+- Reddit widget `search` now requires `app-auth` since Reddit no longer allows signed-out searches
 
 # Changes for 3.0.1
 - Updated docs website

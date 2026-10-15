@@ -2391,6 +2391,8 @@ Can be used to specify the order in which the posts should get returned. Possibl
 Available only when `sort-by` is set to `top`. Possible values are `hour`, `day`, `week`, `month`, `year` and `all`.
 
 ##### `search`
+**Due to changes in Reddit's API, `search` works only when `app-auth` is configured.**
+
 Keywords to search for. Searching within specific fields is also possible, **though keep in mind that Reddit may remove the ability to use any of these at any time**:
 
 ![](images/reddit-field-search.png)
@@ -2411,7 +2413,9 @@ widgets:
       secret: ${REDDIT_APP_SECRET}
 ```
 
-To register an app on Reddit, go to [this page](https://ssl.reddit.com/prefs/apps/).
+To register an app on Reddit, go to [this page](https://ssl.reddit.com/prefs/apps/), create a `script` type app and use its name, client ID (shown under the app name) and secret.
+
+This is the most reliable way to use the widget, since requests go through Reddit's official API instead of the public JSON endpoints. If the widget shows `reddit blocked the request`, Reddit is refusing unauthenticated access from your IP and `app-auth` is the recommended fix.
 
 ### Releases
 Display a list of latest releases for specific repositories on Github, GitLab, Codeberg or Docker Hub.
