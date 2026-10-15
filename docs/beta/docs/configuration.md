@@ -3662,6 +3662,64 @@ When `true`, hides the user row for each session - both the username and the pla
 - Uses the Subsonic/OpenSubsonic API (`getNowPlaying`).
 - Set `username` to your Navidrome username and `token` to your Navidrome password.
 
+### Home Assistant
+Display the state of your Home Assistant entities and toggle lights, switches, fans and input booleans.
+
+Example:
+
+```yaml
+- type: home-assistant
+  url: http://homeassistant.local:8123
+  token: ${HOME_ASSISTANT_TOKEN}
+  entities:
+    - entity: light.living_room
+    - entity: switch.coffee_maker
+      title: Coffee
+    - entity: sensor.outside_temperature
+      icon: mdi:sun-thermometer
+```
+
+Preview:
+
+![](images/home-assistant-widget-preview.png)
+
+#### Properties
+
+| Name | Type | Required | Default |
+| ---- | ---- | -------- | ------- |
+| url | string | yes |  |
+| token | string | yes |  |
+| entities | array | yes |  |
+| allow-insecure | boolean | no | false |
+
+##### `url`
+The URL of your Home Assistant instance.
+
+##### `token`
+A long-lived access token. Create one in Home Assistant by opening your profile, going to the `Security` tab and clicking `Create token` under `Long-lived access tokens`.
+
+##### `entities`
+The entities to show, in the order they should appear. Each entity accepts the following properties:
+
+| Name | Type | Required | Default |
+| ---- | ---- | -------- | ------- |
+| entity | string | yes |  |
+| title | string | no | entity's friendly name |
+| icon | string | no | entity's Home Assistant icon |
+
+`entity` is the entity ID, e.g. `light.kitchen`, as shown in Home Assistant under `Settings > Devices & services > Entities`.
+
+When `icon` is not set, the widget uses the icon set on the entity in Home Assistant, otherwise the same default icon Home Assistant uses for that domain, device class and state, e.g. `mdi:lightbulb` and `mdi:lightbulb-off` for lights. Any value from [Icons](#icons) works, so icons copied from Home Assistant (`mdi:...`) can be used as is.
+
+Entities from the `light`, `switch`, `fan` and `input_boolean` domains get a toggle. Sensors show their value with the unit, and an entity that doesn't exist is shown as `Not found` instead of breaking the widget.
+
+> [!WARNING]
+>
+> Anyone who can open the page can use the toggles, so put the page behind [authentication](authentication.md) if Dynacat is reachable by others.
+
+##### `allow-insecure`
+Whether to allow invalid/self-signed certificates when connecting to Home Assistant.
+
 ### Latest Media
 
 Display a poster grid of recently added items from Plex, Jellyfin, and/or Emby. Each card shows a portrait thumbnail with an optional dark gradient overlay containing the title, year, duration (movies only), and how long ago it was added.
