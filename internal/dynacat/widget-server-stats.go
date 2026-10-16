@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"io"
 	"log/slog"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,7 +78,13 @@ func (widget *serverStatsWidget) update(context.Context) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				info, err := fetchRemoteServerInfo(serv)
+				var info *sysinfo.SystemInfo
+				var err error
+				if serv.Type == "node-exporter" {
+					info, err = fetchNodeExporterInfo(serv)
+				} else {
+					info, err = fetchRemoteServerInfo(serv)
+				}
 				if err != nil {
 					slog.Warn("Getting remote system info: " + err.Error())
 					serv.IsReachable = false
@@ -111,6 +119,9 @@ type serverStatsRequest struct {
 	URL                        string              `yaml:"url"`
 	Token                      string              `yaml:"token"`
 	Timeout                    durationField       `yaml:"timeout"`
+
+	// Set once node_exporter rejects the collect[] filter, e.g. when one of the collectors is disabled.
+	nodeExporterUnfiltered bool
 }
 
 func (s *serverStatsRequest) DiskUsedPercent() uint8 {
@@ -161,6 +172,48 @@ func fetchRemoteServerInfo(infoReq *serverStatsRequest) (*sysinfo.SystemInfo, er
 	info, err := decodeJsonFromRequest[*sysinfo.SystemInfo](defaultHTTPClient, request)
 	if err != nil {
 		return nil, err
+	}
+
+	return info, nil
+}
+
+// Bypasses the shared fetch cache and streams the body so only the parsed values are kept in memory.
+func fetchNodeExporterInfo(infoReq *serverStatsRequest) (*sysinfo.SystemInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(infoReq.Timeout))
+	defer cancel()
+
+	metricsURL := strings.TrimSuffix(infoReq.URL, "/metrics") + "/metrics"
+	if !infoReq.nodeExporterUnfiltered {
+		query := url.Values{"collect[]": sysinfo.NodeExporterCollectors}
+		metricsURL += "?" + query.Encode()
+	}
+
+	request, err := http.NewRequestWithContext(ctx, "GET", metricsURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	if infoReq.Token != "" {
+		request.Header.Set("Authorization", "Bearer "+infoReq.Token)
+	}
+
+	response, err := defaultHTTPClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode == http.StatusBadRequest && !infoReq.nodeExporterUnfiltered {
+		infoReq.nodeExporterUnfiltered = true
+		return fetchNodeExporterInfo(infoReq)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code %d from %s", response.StatusCode, infoReq.URL)
+	}
+
+	info, errs := sysinfo.ParseNodeExporter(io.LimitReader(response.Body, maxResponseBytes), infoReq.SystemInfoRequest)
+	for i := range errs {
+		slog.Warn("Parsing node_exporter metrics: " + errs[i].Error())
 	}
 
 	return info, nil
