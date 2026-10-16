@@ -76,6 +76,8 @@ func newWidget(widgetType string) (widget, error) {
 		w = &dnsStatsWidget{}
 	case "split-column":
 		w = &splitColumnWidget{}
+	case "tracearr":
+		w = &tracearrWidget{}
 	case "custom-api":
 		w = &customAPIWidget{}
 	case "dynawidgets":

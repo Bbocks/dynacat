@@ -1,0 +1,59 @@
+{{ template "widget-base.html" . }}
+
+{{ define "widget-content-classes" }}{{ if .Frameless }}widget-content-frameless{{ end }}{{ end }}
+
+{{ define "widget-content" }}
+{{/* Stat row mirrors the Plex Stats custom-api widget: flex justify-between text-center, size-h3 values, size-h6 labels. */}}
+<div class="flex justify-between text-center">
+    <div>
+        <div class="{{ if gt .Summary.Total 0 }}color-positive{{ else }}color-highlight{{ end }} size-h3">{{ .Summary.Total }}</div>
+        <div class="size-h6{{ if gt .Summary.Total 0 }} color-positive{{ end }}">STREAMS</div>
+    </div>
+    <div>
+        <div class="color-highlight size-h3">{{ .Summary.Transcodes }}</div>
+        <div class="size-h6">TRANSCODES</div>
+    </div>
+    <div>
+        <div class="color-highlight size-h3">{{ .Summary.DirectPlays }}</div>
+        <div class="size-h6">DIRECT PLAY</div>
+    </div>
+    <div>
+        <div class="color-highlight size-h3">{{ .Summary.TotalBitrate }}</div>
+        <div class="size-h6">BITRATE</div>
+    </div>
+</div>
+
+{{ if .Sessions }}
+<div class="margin-top-10">
+    {{ range $i, $session := .Sessions }}
+    <div{{ if gt $i 0 }} class="margin-top-10"{{ end }}>
+        <div class="margin-top-5 text-truncate">
+            {{- if and (eq $session.MediaType "episode") $session.ShowTitle -}}
+            <span class="size-p color-highlight">{{ $session.ShowTitle }}: S{{ printf "%02d" $session.SeasonNumber }} · E{{ printf "%02d" $session.EpisodeNumber }} - {{ $session.MediaTitle }}</span>
+            {{- else -}}
+            <span class="size-p color-highlight">{{ $session.MediaTitle }}</span>
+            {{- end -}}
+            {{- if $session.Username }} <span class="size-h6 color-positive">({{ $session.Username }})</span>{{ end -}}
+        </div>
+        <div class="margin-top-5 flex justify-between">
+            {{/* The progress times stay: "0:00 / 0:00" was a deliberate touch. */}}
+            <span class="size-h6 color-subdue">{{ $session.FormattedProgress }} / {{ $session.FormattedDuration }}</span>
+            {{ if or $session.VideoDecision $session.AudioDecision }}
+            {{- if or (eq $session.VideoDecision "directplay") (eq $session.AudioDecision "directplay") -}}
+            <span class="size-h6 color-positive">Direct Play</span>
+            {{- else if or (eq $session.VideoDecision "copy") (eq $session.AudioDecision "copy") -}}
+            <span class="size-h6 color-subdue">Copy</span>
+            {{- else -}}
+            <span class="size-h6 color-negative">Transcode</span>
+            {{- end -}}
+            {{ end }}
+        </div>
+    </div>
+    {{ end }}
+</div>
+{{ else }}
+<div class="text-center margin-top-10">
+    <span class="size-h6 color-subdue">No active sessions</span>
+</div>
+{{ end }}
+{{ end }}
