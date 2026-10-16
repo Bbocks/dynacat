@@ -286,7 +286,7 @@ var fieldAnnotations = map[string]map[string]fieldAnnotation{
 	},
 	"server-stats": {
 		"servers":     {Hint: "Leave empty to show stats for the server Dynacat itself is running on."},
-		"servers.url": {Hint: "Address and port of the remote server's Dynacat Agent."},
+		"servers.url": {Hint: "Address and port of the remote server's Dynacat Agent or node_exporter."},
 	},
 }
 

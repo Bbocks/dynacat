@@ -2889,7 +2889,9 @@ Preview:
 >
 > This widget is currently under development, some features might not function as expected or may change.
 
-To display data from a remote server you need to have the Dynacat Agent running on that server. You can download the agent from [here](https://github.com/glanceapp/agent), though keep in mind that it is still in development and may not work as expected. Support for other providers such as Dynacats will be added in the future.
+To display data from a remote server you need to have the Dynacat Agent running on that server. You can download the agent from [here](https://github.com/glanceapp/agent), though keep in mind that it is still in development and may not work as expected.
+
+Servers already running Prometheus [node_exporter](https://github.com/prometheus/node_exporter) can be used directly without installing the agent.
 
 In the event that the CPU temperature goes over 80°C, a flame icon will appear next to the CPU. The progress indicators will also turn red (or the equivalent of your negative color) to hopefully grab your attention if anything is unusually high:
 
@@ -2912,7 +2914,7 @@ Alternatively, set [`HOST_ETC`](docker-options.md#host_etc) if you'd rather bind
 ##### `servers`
 If not provided it will display the statistics of the server Dynacat is running on.
 
-##### Properties for both `local` and `remote` servers
+##### Properties for all servers
 | Name | Type | Required | Default |
 | ---- | ---- | -------- | ------- |
 | type | string | yes |  |
@@ -2921,7 +2923,7 @@ If not provided it will display the statistics of the server Dynacat is running 
 | hide-swap | boolean | no | false |
 
 ###### `type`
-Whether to display statistics for the local server or a remote server. Possible values are `local` and `remote`.
+Whether to display statistics for the local server or a remote server. Possible values are `local`, `remote` (Dynacat Agent) and `node-exporter`.
 
 ###### `name`
 The name of the server which will be displayed on the widget. If not provided it will default to the server's hostname.
@@ -2934,7 +2936,7 @@ Whether to use a compact layout that hides system info, swap usage and the CPU 1
 ###### `hide-swap`
 Whether to hide the swap usage.
 
-##### Properties for the `local` server
+##### Properties for `local` and `node-exporter` servers
 | Name | Type | Required | Default |
 | ---- | ---- | -------- | ------- |
 | cpu-temp-sensor | string | no |  |
@@ -3004,7 +3006,7 @@ The name of the mountpoint which will be displayed on the widget. If not provide
 ###### `hide`
 Whether to hide this mountpoint from the widget.
 
-##### Properties for `remote` servers
+##### Properties for `remote` and `node-exporter` servers
 | Name | Type | Required | Default |
 | ---- | ---- | -------- | ------- |
 | url | string | yes |  |
@@ -3012,10 +3014,12 @@ Whether to hide this mountpoint from the widget.
 | timeout | string | no | 3s |
 
 ###### `url`
-The URL and port of the server to fetch the statistics from.
+The URL and port of the server to fetch the statistics from. For `node-exporter` the `/metrics` path is added automatically.
+
+Dynacat only asks node_exporter for the `cpu`, `filesystem`, `hwmon`, `loadavg`, `meminfo`, `os`, `stat` and `uname` collectors, and falls back to the full metrics page if one of them is disabled. Only Linux hosts are supported. `tmpfs` and `ramfs` mountpoints are hidden unless listed under `mountpoints`.
 
 ###### `token`
-The authentication token to use when fetching the statistics.
+The authentication token to use when fetching the statistics, sent as a `Bearer` token.
 
 ###### `timeout`
 The maximum time to wait for a response from the server. The value is a string and must be a number followed by one of s, m, h, d. Example: `10s` for 10 seconds, `1m` for 1 minute, etc
