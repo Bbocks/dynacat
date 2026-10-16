@@ -39,12 +39,12 @@
             {{/* The progress times stay: "0:00 / 0:00" was a deliberate touch. */}}
             <span class="size-h6 color-subdue">{{ $session.FormattedProgress }} / {{ $session.FormattedDuration }}</span>
             {{ if or $session.VideoDecision $session.AudioDecision }}
-            {{- if or (eq $session.VideoDecision "directplay") (eq $session.AudioDecision "directplay") -}}
-            <span class="size-h6 color-positive">Direct Play</span>
+            {{- if or (eq $session.VideoDecision "transcode") (eq $session.AudioDecision "transcode") -}}
+            <span class="size-h6 color-negative">Transcode</span>
             {{- else if or (eq $session.VideoDecision "copy") (eq $session.AudioDecision "copy") -}}
             <span class="size-h6 color-subdue">Copy</span>
             {{- else -}}
-            <span class="size-h6 color-negative">Transcode</span>
+            <span class="size-h6 color-positive">Direct Play</span>
             {{- end -}}
             {{ end }}
         </div>

@@ -82,6 +82,32 @@ func (widget *tracearrWidget) setProviders(providers *widgetProviders) {
 	widget.widgetBase.setProviders(providers)
 }
 
+// refuseRedirectDowngrade keeps the bearer key from being replayed over
+// plaintext if an HTTPS Tracearr endpoint redirects to HTTP. Plain HTTP
+// endpoints stay allowed (TLS is uncommon on trusted LAN instances); the
+// guard only pins an HTTPS start to HTTPS hops.
+func refuseRedirectDowngrade(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+
+	if via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
+		return errors.New("refusing redirect from https to plaintext http for credentialed request")
+	}
+
+	return nil
+}
+
+// tracearrHTTPClient clones the shared client (keeping its transport and
+// connection pool) and adds the redirect guard for this credentialed fetch.
+func (widget *tracearrWidget) tracearrHTTPClient() *http.Client {
+	base := ternary(widget.AllowInsecure, defaultInsecureHTTPClient, defaultHTTPClient)
+	client := *base
+	client.CheckRedirect = refuseRedirectDowngrade
+
+	return &client
+}
+
 // formatTracearrDuration renders a millisecond timestamp as m:ss or h:mm:ss.
 func formatTracearrDuration(ms int64) string {
 	if ms < 0 {
@@ -108,7 +134,7 @@ func (widget *tracearrWidget) update(ctx context.Context) {
 	req.Header.Set("Authorization", "Bearer "+widget.Key)
 	req.Header.Set("Accept", "application/json")
 
-	client := ternary(widget.AllowInsecure, defaultInsecureHTTPClient, defaultHTTPClient)
+	client := widget.tracearrHTTPClient()
 
 	// decodeJsonFromRequest shares identical GET requests across widgets,
 	// checks the status code, and decodes the JSON body.
