@@ -337,7 +337,12 @@ func pageNodeToView(pageNode *yaml.Node, path string, docs *editorDocs) editorPa
 
 	for i := 0; i+1 < len(pageNode.Content); i += 2 {
 		if v := pageNode.Content[i+1]; v.Kind == yaml.ScalarNode {
-			pv.Options[pageNode.Content[i].Value] = v.Value
+			value := v.Value
+			// The editor compares bools in lowercase.
+			if v.ShortTag() == "!!bool" {
+				value = strings.ToLower(value)
+			}
+			pv.Options[pageNode.Content[i].Value] = value
 		}
 	}
 
@@ -459,6 +464,9 @@ func (a *application) applyEditorMutation(user *authenticatedUser, m editorMutat
 	}
 
 	if m.Op == "editPage" {
+		if len(a.userRestrictEditing(user)) > 0 {
+			restrictBackgroundFields(slot.node, m.Fields)
+		}
 		if err := applyPageFields(slot.node, m.Fields); err != nil {
 			return err
 		}
@@ -1607,6 +1615,15 @@ func orderedFieldKeys(m map[string]any) []string {
 	keys := sortedKeys(m)
 	slices.SortStableFunc(keys, func(a, b string) int { return fieldOrderRank(a) - fieldOrderRank(b) })
 	return keys
+}
+
+// Keeps restricted editors from applying a new background to every page.
+func restrictBackgroundFields(pageNode *yaml.Node, fields map[string]any) {
+	delete(fields, "global-background")
+	bg, ok := fields["page-background"].(string)
+	if ok && !isEmptyValue(bg) && strings.TrimSpace(bg) != scalarValue(getMappingValue(pageNode, "page-background")) {
+		fields["global-background"] = false
+	}
 }
 
 func isEmptyValue(v any) bool {
