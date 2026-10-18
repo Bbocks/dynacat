@@ -71,7 +71,10 @@ func (widget *monitorWidget) initialize() error {
 
 	for i := range widget.Sites {
 		req := widget.Sites[i].SiteStatusRequest
-		if req == nil || req.Method == "" {
+		if req == nil || req.statusURL() == "" {
+			return fmt.Errorf("site %q: url is required", widget.Sites[i].Title)
+		}
+		if req.Method == "" {
 			continue
 		}
 		method := strings.ToUpper(req.Method)
