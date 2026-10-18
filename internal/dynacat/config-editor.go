@@ -465,7 +465,9 @@ func (a *application) applyEditorMutation(user *authenticatedUser, m editorMutat
 
 	if m.Op == "editPage" {
 		if len(a.userRestrictEditing(user)) > 0 {
-			restrictBackgroundFields(slot.node, m.Fields)
+			if err := restrictBackgroundFields(slot.node, m.Fields); err != nil {
+				return err
+			}
 		}
 		if err := applyPageFields(slot.node, m.Fields); err != nil {
 			return err
@@ -690,7 +692,8 @@ func applyPageFields(pageNode *yaml.Node, fields map[string]any) error {
 		if k == "name" && isEmptyValue(v) {
 			continue
 		}
-		if isEmptyValue(v) || (v == false && k != "global-background") {
+		// Drop values equal to their default, global-background defaults to true.
+		if isEmptyValue(v) || v == (k == "global-background") {
 			removeMappingKey(pageNode, k)
 			continue
 		}
@@ -1617,13 +1620,27 @@ func orderedFieldKeys(m map[string]any) []string {
 	return keys
 }
 
-// Keeps restricted editors from applying a new background to every page.
-func restrictBackgroundFields(pageNode *yaml.Node, fields map[string]any) {
+// Keeps restricted editors from changing the background of any other page.
+func restrictBackgroundFields(pageNode *yaml.Node, fields map[string]any) error {
 	delete(fields, "global-background")
 	bg, ok := fields["page-background"].(string)
-	if ok && !isEmptyValue(bg) && strings.TrimSpace(bg) != scalarValue(getMappingValue(pageNode, "page-background")) {
+	current := scalarValue(getMappingValue(pageNode, "page-background"))
+	if !ok || strings.TrimSpace(bg) == current {
+		return nil
+	}
+	if current != "" && pageNodeGlobalBackground(pageNode) {
+		return &editorValidationError{err: errors.New("this background is shared with all pages and can't be changed here"), field: "page-background"}
+	}
+	if !isEmptyValue(bg) {
 		fields["global-background"] = false
 	}
+	return nil
+}
+
+func pageNodeGlobalBackground(pageNode *yaml.Node) bool {
+	var enabled bool
+	n := getMappingValue(pageNode, "global-background")
+	return n == nil || n.Decode(&enabled) != nil || enabled
 }
 
 func isEmptyValue(v any) bool {
