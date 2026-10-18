@@ -54,6 +54,8 @@ type application struct {
 	widgetToPage  map[uint64]*page
 	searchTargets searchTargetRegistry
 
+	globalBackground string
+
 	RequiresAuth           bool
 	OIDCEnabled            bool
 	PasswordEnabled        bool
@@ -301,6 +303,11 @@ func newApplication(c *config) (*application, error) {
 		usedSlugs[page.Slug] = struct{}{}
 
 		app.slugToPage[page.Slug] = page
+
+		page.PageBackground = app.resolveUserDefinedAssetPath(page.PageBackground)
+		if app.globalBackground == "" && page.PageBackground != "" && page.GlobalBackgroundEnabled() {
+			app.globalBackground = page.PageBackground
+		}
 
 		if page.Width == "default" {
 			page.Width = ""
@@ -571,6 +578,14 @@ func (a *application) resolveUserDefinedAssetPath(path string) string {
 	}
 
 	return path
+}
+
+func (a *application) BackgroundFor(p *page) string {
+	if p != nil && p.PageBackground != "" {
+		return p.PageBackground
+	}
+
+	return a.globalBackground
 }
 
 type templateRequestData struct {

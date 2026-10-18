@@ -81,13 +81,14 @@ type editorPresetView struct {
 }
 
 type editorPageView struct {
-	Title    string             `json:"title"`
-	Slug     string             `json:"slug"`
-	Width    string             `json:"width"`
-	File     string             `json:"file"`
-	Writable bool               `json:"writable"`
-	Options  map[string]string  `json:"options"`
-	Columns  []editorColumnView `json:"columns"`
+	Title               string             `json:"title"`
+	Slug                string             `json:"slug"`
+	Width               string             `json:"width"`
+	File                string             `json:"file"`
+	Writable            bool               `json:"writable"`
+	Options             map[string]string  `json:"options"`
+	Columns             []editorColumnView `json:"columns"`
+	InheritedBackground string             `json:"inheritedBackground,omitempty"`
 }
 
 type editorColumnView struct {
@@ -268,6 +269,9 @@ func (a *application) buildEditorConfigView(user *authenticatedUser) (editorConf
 		if configPage != nil {
 			pv.Slug = configPage.Slug
 			pv.Title = configPage.Title
+			if configPage.PageBackground == "" {
+				pv.InheritedBackground = a.globalBackground
+			}
 		}
 		view.Pages = append(view.Pages, pv)
 	}
@@ -333,7 +337,12 @@ func pageNodeToView(pageNode *yaml.Node, path string, docs *editorDocs) editorPa
 
 	for i := 0; i+1 < len(pageNode.Content); i += 2 {
 		if v := pageNode.Content[i+1]; v.Kind == yaml.ScalarNode {
-			pv.Options[pageNode.Content[i].Value] = v.Value
+			value := v.Value
+			// The editor compares bools in lowercase.
+			if v.ShortTag() == "!!bool" {
+				value = strings.ToLower(value)
+			}
+			pv.Options[pageNode.Content[i].Value] = value
 		}
 	}
 
@@ -455,6 +464,11 @@ func (a *application) applyEditorMutation(user *authenticatedUser, m editorMutat
 	}
 
 	if m.Op == "editPage" {
+		if len(a.userRestrictEditing(user)) > 0 {
+			if err := restrictBackgroundFields(slot.node, m.Fields); err != nil {
+				return err
+			}
+		}
 		if err := applyPageFields(slot.node, m.Fields); err != nil {
 			return err
 		}
@@ -678,7 +692,8 @@ func applyPageFields(pageNode *yaml.Node, fields map[string]any) error {
 		if k == "name" && isEmptyValue(v) {
 			continue
 		}
-		if isEmptyValue(v) || v == false {
+		// Drop values equal to their default, global-background defaults to true.
+		if isEmptyValue(v) || v == (k == "global-background") {
 			removeMappingKey(pageNode, k)
 			continue
 		}
@@ -1603,6 +1618,29 @@ func orderedFieldKeys(m map[string]any) []string {
 	keys := sortedKeys(m)
 	slices.SortStableFunc(keys, func(a, b string) int { return fieldOrderRank(a) - fieldOrderRank(b) })
 	return keys
+}
+
+// Keeps restricted editors from changing the background of any other page.
+func restrictBackgroundFields(pageNode *yaml.Node, fields map[string]any) error {
+	delete(fields, "global-background")
+	bg, ok := fields["page-background"].(string)
+	current := scalarValue(getMappingValue(pageNode, "page-background"))
+	if !ok || strings.TrimSpace(bg) == current {
+		return nil
+	}
+	if current != "" && pageNodeGlobalBackground(pageNode) {
+		return &editorValidationError{err: errors.New("this background is shared with all pages and can't be changed here"), field: "page-background"}
+	}
+	if !isEmptyValue(bg) {
+		fields["global-background"] = false
+	}
+	return nil
+}
+
+func pageNodeGlobalBackground(pageNode *yaml.Node) bool {
+	var enabled bool
+	n := getMappingValue(pageNode, "global-background")
+	return n == nil || n.Decode(&enabled) != nil || enabled
 }
 
 func isEmptyValue(v any) bool {
