@@ -126,6 +126,8 @@ type page struct {
 	CenterVertically       bool            `yaml:"center-vertically"`
 	HideFromNavigation     bool            `yaml:"hide-from-navigation"`
 	KeyBind                string          `yaml:"key-bind"`
+	PageBackground         string          `yaml:"page-background"`
+	GlobalBackground       *bool           `yaml:"global-background"`
 	HeadWidgets            widgets         `yaml:"head-widgets"`
 	Columns                []struct {
 		Size    string  `yaml:"size"`
@@ -139,6 +141,10 @@ type page struct {
 
 func (p *page) DynamicUpdatesEnabled() bool {
 	return p.DynamicUpdates == nil || *p.DynamicUpdates
+}
+
+func (p *page) GlobalBackgroundEnabled() bool {
+	return p.GlobalBackground == nil || *p.GlobalBackground
 }
 
 func (p *page) normalizeKeyBind() {

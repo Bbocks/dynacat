@@ -81,13 +81,14 @@ type editorPresetView struct {
 }
 
 type editorPageView struct {
-	Title    string             `json:"title"`
-	Slug     string             `json:"slug"`
-	Width    string             `json:"width"`
-	File     string             `json:"file"`
-	Writable bool               `json:"writable"`
-	Options  map[string]string  `json:"options"`
-	Columns  []editorColumnView `json:"columns"`
+	Title               string             `json:"title"`
+	Slug                string             `json:"slug"`
+	Width               string             `json:"width"`
+	File                string             `json:"file"`
+	Writable            bool               `json:"writable"`
+	Options             map[string]string  `json:"options"`
+	Columns             []editorColumnView `json:"columns"`
+	InheritedBackground string             `json:"inheritedBackground,omitempty"`
 }
 
 type editorColumnView struct {
@@ -268,6 +269,9 @@ func (a *application) buildEditorConfigView(user *authenticatedUser) (editorConf
 		if configPage != nil {
 			pv.Slug = configPage.Slug
 			pv.Title = configPage.Title
+			if configPage.PageBackground == "" {
+				pv.InheritedBackground = a.globalBackground
+			}
 		}
 		view.Pages = append(view.Pages, pv)
 	}
@@ -678,7 +682,7 @@ func applyPageFields(pageNode *yaml.Node, fields map[string]any) error {
 		if k == "name" && isEmptyValue(v) {
 			continue
 		}
-		if isEmptyValue(v) || v == false {
+		if isEmptyValue(v) || (v == false && k != "global-background") {
 			removeMappingKey(pageNode, k)
 			continue
 		}
