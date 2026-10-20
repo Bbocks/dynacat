@@ -1,5 +1,10 @@
 import { clamp } from "./utils.js";
 
+/**
+ * Arranges the widgets inside each `.masonry` container into responsive
+ * columns and keeps them arranged across live updates, resizes, and
+ * visibility changes.
+ */
 export function setupMasonries() {
     const masonryContainers = document.getElementsByClassName("masonry");
 
