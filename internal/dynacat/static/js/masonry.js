@@ -1,10 +1,6 @@
 import { clamp } from "./utils.js";
 
-/**
- * Arranges the widgets inside each `.masonry` container into responsive
- * columns and keeps them arranged across live updates, resizes, and
- * visibility changes.
- */
+/** Keeps .masonry widgets in responsive columns as layouts change. */
 export function setupMasonries() {
     const masonryContainers = document.getElementsByClassName("masonry");
 
@@ -20,12 +16,7 @@ export function setupMasonries() {
         };
 
         let previousColumnsCount = 0;
-
-        // Re-derive the wrapped items on every render instead of caching them
-        // once at setup. Live updates (SSE morphs / polling content swaps)
-        // replace the masonry's children with unwrapped widgets, so a cached
-        // item list would go stale, and the column structure has to be
-        // recoverable from whatever is currently inside the container.
+        // Re-derive items on each render to handle live updates that replace masonry children and invalidate cached items.
         const collectState = () => {
             const columns = [];
             const loose = [];
@@ -34,9 +25,7 @@ export function setupMasonries() {
                 (child.classList.contains("masonry-column") ? columns : loose).push(child);
             }
 
-            // Items are distributed round-robin across the columns, so
-            // walking the columns row by row reconstructs the original item
-            // order (a plain column-by-column walk would shuffle it).
+            // Traverse columns row by row to restore the original round-robin item order.
             const items = [];
             const rows = columns.length > 0 ? Math.max(...columns.map(c => c.children.length)) : 0;
 
@@ -64,10 +53,7 @@ export function setupMasonries() {
                 Math.min(options.maxColumns, items.length)
             );
 
-            // Only skip the rebuild when the columns are present, nothing is
-            // sitting outside them, and the count is unchanged - live updates
-            // can strip the columns or leave new widgets unwrapped while the
-            // count still looks "correct".
+            // Skip rebuilding only if columns exist, all items are wrapped, and the count matches.
             if (hasColumns && !hasLoose && columnsCount === previousColumnsCount) {
                 return;
             }
@@ -95,15 +81,8 @@ export function setupMasonries() {
             container._masonryObserver.disconnect();
         }
 
-        // Render synchronously instead of only on the next resize/rAF tick.
-        // Live updates mutate this container's children within the same task
-        // (an SSE morph or content swap leaves the widgets unwrapped), and the
-        // browser would otherwise paint that intermediate unwrapped - squashed
-        // - state for a frame or two before the ResizeObserver/rAF pass could
-        // rebuild the columns, which shows up as flashing on every update.
-        // Skipped while hidden (offsetWidth 0, e.g. before the page reveal on
-        // initial load) - a hidden container cannot flash, and the observer
-        // below takes over once it becomes visible.
+        // Rebuild synchronously to prevent flashing during live updates.
+        // Skip hidden containers; the observer handles them once visible.
         if (container.offsetWidth > 0) {
             render();
         }
